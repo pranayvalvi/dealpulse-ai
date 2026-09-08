@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useSpeechRecognition = () => {
   const [transcript, setTranscript] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef(null);
+  const isRecordingRef = useRef(false);
 
   useEffect(() => {
     // Check for browser support
@@ -30,12 +31,17 @@ const useSpeechRecognition = () => {
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
       setIsRecording(false);
+      isRecordingRef.current = false;
     };
 
     recognition.onend = () => {
-      if (isRecording) {
-        // Automatically restart if it stops unexpectedly while we still want to record
-        recognition.start();
+      // If it stopped but we still want to record (e.g., browser paused it), restart it
+      if (isRecordingRef.current) {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Error restarting recognition:", e);
+        }
       }
     };
 
@@ -46,30 +52,33 @@ const useSpeechRecognition = () => {
         recognitionRef.current.stop();
       }
     };
-  }, [isRecording]);
+  }, []); // Run only once on mount
 
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
+    if (!recognitionRef.current) return;
+    
     setTranscript('');
     setIsRecording(true);
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error("Error starting recognition:", e);
-      }
+    isRecordingRef.current = true;
+    
+    try {
+      recognitionRef.current.start();
+    } catch (e) {
+      console.error("Error starting recognition:", e);
     }
-  };
+  }, []);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
+    if (!recognitionRef.current) return;
+    
     setIsRecording(false);
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-  };
+    isRecordingRef.current = false;
+    recognitionRef.current.stop();
+  }, []);
 
   return {
     transcript,
-    setTranscript, // exposing setTranscript for manual input fallback
+    setTranscript,
     isRecording,
     startRecording,
     stopRecording
