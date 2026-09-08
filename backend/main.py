@@ -32,7 +32,7 @@ class TranscriptInput(BaseModel):
 async def analyze_transcript(input_data: TranscriptInput):
     try:
         response = ollama.chat(
-            model='llama3.2',
+            model='qwen2.5:7b',
             messages=[
                 {
                     'role': 'system',
